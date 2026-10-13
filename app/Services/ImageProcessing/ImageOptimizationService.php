@@ -14,6 +14,7 @@ class ImageOptimizationService
         protected ImageProcessor $processor,
         protected ImageResizer $resizer,
         protected ImageEncoder $encoder,
+        protected ImageWatermarker $watermarker,
     ) {}
 
     /**
@@ -94,6 +95,34 @@ class ImageOptimizationService
             );
         }
 
+        // Watermark setup
+        $watermarkEnabled = filter_var(
+            $settings['watermark_enabled'] ?? false,
+            FILTER_VALIDATE_BOOLEAN,
+            FILTER_NULL_ON_FAILURE
+        );
+
+        if ($watermarkEnabled === null) {
+            throw new InvalidArgumentException(
+                'Watermark enabled must be a boolean.'
+            );
+        }
+
+        $watermarkSettings = [
+            'text' => trim((string) ($settings['watermark_text'] ?? '')),
+            'position' => $settings['watermark_position'] ?? 'bottom-right',
+            'opacity' => (int) ($settings['watermark_opacity'] ?? 70),
+            'size' => (int) ($settings['watermark_size'] ?? 24),
+            'color' => $settings['watermark_color'] ?? '#FFFFFF',
+            'margin' => (int) ($settings['watermark_margin'] ?? 20),
+        ];
+
+        if ($watermarkEnabled && $watermarkSettings['text'] === '') {
+            throw new InvalidArgumentException(
+                'Watermark text is required when watermarking is enabled.'
+            );
+        }
+
         // Keep track of every GD image so each can be released once.
         $imagesToRelease = [];
 
@@ -119,6 +148,14 @@ class ImageOptimizationService
 
                 $imagesToRelease[spl_object_id($workingImage)] =
                     $workingImage;
+            }
+
+            // 4. Apply the optional text watermark.
+            if ($watermarkEnabled) {
+                $this->watermarker->apply(
+                    $workingImage,
+                    $watermarkSettings,
+                );
             }
 
             // 3. JPEG does not support transparency.
@@ -186,6 +223,28 @@ class ImageOptimizationService
                     'resize_mode' => (
                         $width !== null || $height !== null
                     ) ? $resizeMode : null,
+
+                    'watermark' => [
+                        'enabled' => $watermarkEnabled,
+                        'text' => $watermarkEnabled
+                            ? $watermarkSettings['text']
+                            : null,
+                        'position' => $watermarkEnabled
+                            ? $watermarkSettings['position']
+                            : null,
+                        'opacity' => $watermarkEnabled
+                            ? $watermarkSettings['opacity']
+                            : null,
+                        'size' => $watermarkEnabled
+                            ? $watermarkSettings['size']
+                            : null,
+                        'color' => $watermarkEnabled
+                            ? $watermarkSettings['color']
+                            : null,
+                        'margin' => $watermarkEnabled
+                            ? $watermarkSettings['margin']
+                            : null,
+                    ],
                 ],
             ];
         } finally {

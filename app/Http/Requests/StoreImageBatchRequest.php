@@ -86,6 +86,16 @@ class StoreImageBatchRequest extends FormRequest
                 'nullable',
                 'boolean',
             ],
+            'settings.watermark_enabled' => ['sometimes', 'boolean'],
+            'settings.watermark_text' => ['nullable', 'string', 'max:200'],
+            'settings.watermark_position' => [
+                'sometimes',
+                'in:top-left,top-center,top-right,center,bottom-left,bottom-center,bottom-right',
+            ],
+            'settings.watermark_opacity' => ['sometimes', 'integer', 'min:0', 'max:100'],
+            'settings.watermark_size' => ['sometimes', 'integer', 'min:8', 'max:200'],
+            'settings.watermark_color' => ['sometimes', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'settings.watermark_margin' => ['sometimes', 'integer', 'min:0', 'max:1000'],
         ];
     }
 
@@ -120,6 +130,24 @@ class StoreImageBatchRequest extends FormRequest
                     FILTER_VALIDATE_BOOLEAN
                 )
                 : null,
+            'watermark_enabled' =>  isset($settings['watermark_enabled'])
+                ? filter_var(
+                    $settings['watermark_enabled'],
+                    FILTER_VALIDATE_BOOLEAN
+                )
+                : null,
+            'watermark_text' => $settings['watermark_text'] ?? null,
+            'watermark_position' => $settings['watermark_position'] ?? null,
+            'watermark_opacity' => isset($settings['watermark_opacity'])
+                ? (int) $settings['watermark_opacity']
+                : null,
+            'watermark_size' => isset($settings['watermark_size']) 
+                ? (int) $settings['watermark_size']
+                : null,
+            'watermark_color' => $settings['watermark_color'] ?? null,
+            'watermark_margin' => isset($settings['watermark_margin'])
+                ? (int) $settings['watermark_margin']
+                : null
         ], static fn ($value) => $value !== null);
     }
 }

@@ -22,10 +22,10 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     {{-- Bootstrap Icons --}}
-    <!-- <link
+    <link
         rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
-    > -->
+    >
 
     @stack('styles')
 </head>
@@ -64,7 +64,7 @@
 
                     <li class="nav-item">
                         <a
-                            class="nav-link {{ request()->is('/') ? 'active' : '' }}"
+                            class="nav-link {{ request()->routeIs('imagepilot.optimizer') ? 'active' : '' }}"
                             href="{{ route('imagepilot.optimizer') }}"
                         >
                             Optimizer
@@ -73,7 +73,7 @@
 
                     <li class="nav-item">
                         <a
-                            class="nav-link {{ request()->is('batches') ? 'active' : '' }}"
+                            class="nav-link {{ request()->routeIs('imagepilot.batches') ? 'active' : '' }}"
                             href="{{ route('imagepilot.batches') }}"
                         >
                             My Batches

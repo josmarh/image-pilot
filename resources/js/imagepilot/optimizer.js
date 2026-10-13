@@ -98,6 +98,17 @@ $(function () {
             return;
         }
 
+        const watermarkEnabled = $watermarkEnabled.is(':checked');
+        const watermarkText = $watermarkText.val().trim();
+
+        if (watermarkEnabled && !watermarkText) {
+            showError('Please enter the watermark text.');
+
+            $watermarkText.trigger('focus');
+
+            return;
+        }
+
         const settings = {
             width: $('#width').val() || null,
             height: $('#height').val() || null,
@@ -105,6 +116,14 @@ $(function () {
             output_format: $('#outputFormat').val(),
             quality: Number($('#quality').val()),
             prevent_upscaling: $('#preventUpscaling').is(':checked'),
+
+            watermark_enabled: watermarkEnabled,
+            watermark_text: watermarkText,
+            watermark_position: $('#watermarkPosition').val(),
+            watermark_opacity: Number($watermarkOpacity.val()),
+            watermark_size: Number($('#watermarkSize').val()),
+            watermark_color: $('#watermarkColor').val(),
+            watermark_margin: Number($('#watermarkMargin').val()),
         };
 
         const $button = $(this);
@@ -759,6 +778,36 @@ $(function () {
     });
 
     /*
+    * Watermark controls
+    */
+    const $watermarkEnabled = $('#watermarkEnabled');
+    const $watermarkSettings = $('#watermarkSettings');
+    const $watermarkText = $('#watermarkText');
+    const $watermarkOpacity = $('#watermarkOpacity');
+    const $watermarkOpacityValue = $('#watermarkOpacityValue');
+
+    // Show or hide watermark options.
+    function updateWatermarkVisibility() {
+        const enabled = $watermarkEnabled.is(':checked');
+
+        $watermarkSettings.toggleClass('d-none', !enabled);
+
+        // Only require watermark text when the feature is enabled.
+        $watermarkText.prop('required', enabled);
+    }
+
+    $watermarkEnabled.on('change', updateWatermarkVisibility);
+
+    // Update the opacity percentage as the slider moves.
+    $watermarkOpacity.on('input', function () {
+        $watermarkOpacityValue.text(`${$(this).val()}%`);
+    });
+
+    // Initialize the controls.
+    updateWatermarkVisibility();
+    $watermarkOpacityValue.text(`${$watermarkOpacity.val()}%`);
+
+    /*
      * Saved optimization presets
      */
     let imagePresets = [];
@@ -937,6 +986,19 @@ $(function () {
             resize_mode: $('#resizeMode').val(),
             output_format: $('#outputFormat').val(),
             quality: Number($('#quality').val()),
+
+            watermark_enabled: $('#watermarkEnabled').is(':checked'),
+
+            watermark_type: 'text',
+
+            watermark_settings: {
+                text: $('#watermarkText').val()?.trim() || '',
+                position: $('#watermarkPosition').val() || 'bottom-right',
+                opacity: Number($('#watermarkOpacity').val() ?? 70),
+                size: Number($('#watermarkSize').val() ?? 24),
+                color: $('#watermarkColor').val() || '#FFFFFF',
+                margin: Number($('#watermarkMargin').val() ?? 20),
+            },
         };
     }
 

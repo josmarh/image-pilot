@@ -234,25 +234,158 @@
                     class="collapse mt-3"
                 >
                     <div class="alert alert-light border mb-0">
-                        <div class="form-check mb-3">
+                        {{-- Metadata information --}}
+                        <div class="mb-4">
+                            <div class="d-flex align-items-start gap-2">
+                                <i class="bi bi-shield-check text-success fs-5"></i>
+                                <div>
+                                    <div class="fw-semibold">Metadata removal</div>
+                                    <div class="small text-muted">
+                                        Images are re-encoded during optimization, which
+                                        generally removes embedded metadata such as EXIF.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        {{-- Watermark toggle --}}
+                        <div class="form-check form-switch mb-3">
                             <input
                                 class="form-check-input"
                                 type="checkbox"
-                                id="removeMetadata"
-                                checked
+                                id="watermarkEnabled"
+                                role="switch"
                             >
 
                             <label
-                                class="form-check-label"
-                                for="removeMetadata"
+                                class="form-check-label fw-semibold"
+                                for="watermarkEnabled"
                             >
-                                Remove image metadata
+                                Add text watermark
                             </label>
+
+                            <div class="form-text">
+                                Add a text watermark to your optimized images.
+                            </div>
                         </div>
 
-                        <div class="text-muted small">
-                            Watermarking and custom presets will be
-                            available here.
+                        {{-- Watermark configuration --}}
+                        <div id="watermarkSettings" class="d-none">
+                            <div class="row g-3">
+                                {{-- Watermark text --}}
+                                <div class="col-12">
+                                    <label for="watermarkText" class="form-label">
+                                        Watermark Text
+                                    </label>
+
+                                    <input
+                                        type="text"
+                                        id="watermarkText"
+                                        class="form-control"
+                                        maxlength="200"
+                                        placeholder="e.g. © Your Brand"
+                                    >
+
+                                    <div class="form-text">
+                                        Enter the text you want displayed on your images.
+                                    </div>
+                                </div>
+
+                                {{-- Position --}}
+                                <div class="col-md-6">
+                                    <label for="watermarkPosition" class="form-label">
+                                        Position
+                                    </label>
+
+                                    <select
+                                        id="watermarkPosition"
+                                        class="form-select"
+                                    >
+                                        <option value="top-left">Top left</option>
+                                        <option value="top-center">Top center</option>
+                                        <option value="top-right">Top right</option>
+                                        <option value="center">Center</option>
+                                        <option value="bottom-left">Bottom left</option>
+                                        <option value="bottom-center">Bottom center</option>
+                                        <option value="bottom-right" selected>
+                                            Bottom right
+                                        </option>
+                                    </select>
+                                </div>
+
+                                {{-- Color --}}
+                                <div class="col-md-6">
+                                    <label for="watermarkColor" class="form-label">
+                                        Text Color
+                                    </label>
+
+                                    <input
+                                        type="color"
+                                        id="watermarkColor"
+                                        class="form-control form-control-color w-100"
+                                        value="#FFFFFF"
+                                        title="Choose watermark text color"
+                                    >
+                                </div>
+
+                                {{-- Opacity --}}
+                                <div class="col-md-6">
+                                    <label for="watermarkOpacity" class="form-label">
+                                        Opacity:
+                                        <strong id="watermarkOpacityValue">70%</strong>
+                                    </label>
+
+                                    <input
+                                        type="range"
+                                        id="watermarkOpacity"
+                                        class="form-range"
+                                        min="0"
+                                        max="100"
+                                        value="70"
+                                    >
+                                </div>
+
+                                {{-- Font size --}}
+                                <div class="col-md-6">
+                                    <label for="watermarkSize" class="form-label">
+                                        Font Size (px)
+                                    </label>
+
+                                    <input
+                                        type="number"
+                                        id="watermarkSize"
+                                        class="form-control"
+                                        min="8"
+                                        max="200"
+                                        value="24"
+                                    >
+                                </div>
+
+                                {{-- Margin --}}
+                                <div class="col-md-6">
+                                    <label for="watermarkMargin" class="form-label">
+                                        Edge Margin (px)
+                                    </label>
+
+                                    <input
+                                        type="number"
+                                        id="watermarkMargin"
+                                        class="form-control"
+                                        min="0"
+                                        max="1000"
+                                        value="20"
+                                    >
+                                </div>
+                            </div>
+
+                            <div class="alert alert-info small mt-3 mb-0">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Watermarks are applied after resizing. A watermark may
+                                extend beyond the image boundaries if its text is too
+                                large for the selected image dimensions.
+                            </div>
                         </div>
                     </div>
                 </div>
