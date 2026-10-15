@@ -943,9 +943,8 @@ $(function () {
     }
 
     function applyPreset(preset) {
-        const settings = preset && preset.settings
-            ? preset.settings
-            : {};
+        const settings = preset && preset.settings ? preset.settings : {};
+        const watermark = settings.watermark_settings || {};
 
         $('#width').val(settings.width ?? '');
         $('#height').val(settings.height ?? '');
@@ -958,14 +957,26 @@ $(function () {
             $('#outputFormat').val(settings.output_format);
         }
 
-        if (
-            settings.quality !== null &&
-            settings.quality !== undefined
-        ) {
-            $('#quality')
-                .val(settings.quality)
-                .trigger('input');
+        if (settings.quality !== null && settings.quality !== undefined) {
+            $('#quality').val(settings.quality).trigger('input');
         }
+
+        // Restore watermark settings
+        $('#watermarkEnabled')
+            .prop('checked', settings.watermark_enabled === true)
+            .trigger('change');
+
+        $('#watermarkText').val(watermark.text ?? '');
+        $('#watermarkPosition').val(watermark.position ?? 'bottom-right');
+        $('#watermarkColor').val(watermark.color ?? '#FFFFFF');
+        $('#watermarkOpacity').val(watermark.opacity ?? 70);
+        $('#watermarkSize').val(watermark.size ?? 24);
+        $('#watermarkMargin').val(watermark.margin ?? 20);
+
+        // Update the displayed opacity percentage
+        $('#watermarkOpacityValue').text(
+            `${Number($('#watermarkOpacity').val())}%`
+        );
 
         setPresetFeedback(
             `Applied "${preset.name}". Review the settings before optimizing.`,
@@ -975,29 +986,22 @@ $(function () {
 
     function collectCurrentPresetSettings() {
         return {
-            width: $('#width').val() === ''
-                ? null
-                : Number($('#width').val()),
-
-            height: $('#height').val() === ''
-                ? null
-                : Number($('#height').val()),
-
+            width: $('#width').val() === '' ? null : Number($('#width').val()),
+            height: $('#height').val() === '' ? null : Number($('#height').val()),
             resize_mode: $('#resizeMode').val(),
             output_format: $('#outputFormat').val(),
             quality: Number($('#quality').val()),
+            remove_metadata: true,
 
             watermark_enabled: $('#watermarkEnabled').is(':checked'),
-
             watermark_type: 'text',
-
             watermark_settings: {
-                text: $('#watermarkText').val()?.trim() || '',
-                position: $('#watermarkPosition').val() || 'bottom-right',
-                opacity: Number($('#watermarkOpacity').val() ?? 70),
-                size: Number($('#watermarkSize').val() ?? 24),
-                color: $('#watermarkColor').val() || '#FFFFFF',
-                margin: Number($('#watermarkMargin').val() ?? 20),
+                text: $('#watermarkText').val(),
+                position: $('#watermarkPosition').val(),
+                color: $('#watermarkColor').val(),
+                opacity: Number($('#watermarkOpacity').val()),
+                size: Number($('#watermarkSize').val()),
+                margin: Number($('#watermarkMargin').val()),
             },
         };
     }

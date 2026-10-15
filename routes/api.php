@@ -62,9 +62,14 @@ Route::middleware('auth:sanctum')->group(function () {
         'destroy',
     ])->whereNumber('id')->name('image-presets.destroy');
 
-
     Route::get(
         '/image-processing/batches',
         [ImageProcessingBatchController::class, 'index']
     )->name('image-processing.batches.index');
+
+    Route::get(
+        '/image-processing/batches/{batchReference}/items/{item}/preview/{type}',
+        [ImageProcessingBatchController::class, 'preview']
+    )->whereIn('type', ['original', 'output'])
+    ->name('image-processing.batches.items.preview');
 });

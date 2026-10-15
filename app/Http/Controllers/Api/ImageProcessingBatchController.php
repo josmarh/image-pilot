@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\ImageProcessingBatch;
+use App\Models\ImageProcessingItem;
 use App\Http\Requests\StoreImageBatchRequest;
 use App\Http\Resources\ImageProcessingBatchResource;
 use App\Http\Resources\ImageProcessingItemResource;
@@ -12,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use ZipArchive;
 
@@ -81,6 +83,7 @@ class ImageProcessingBatchController extends Controller
             ->firstOrFail();
 
         $items = $batch->items()
+            ->with('batch')
             ->orderBy('id')
             ->get();
 
@@ -166,5 +169,54 @@ class ImageProcessingBatchController extends Controller
                 "imagepilot-{$batch->batch_reference}.zip"
             )
             ->deleteFileAfterSend(true);
+    }
+
+    public function preview(
+        Request $request,
+        string $batchReference,
+        int $item,
+        string $type
+    ): StreamedResponse {
+        $batch = ImageProcessingBatch::query()
+            ->where('batch_reference', $batchReference)
+            ->where('user_id', $request->user()->id)
+            ->firstOrFail();
+
+        $imageItem = $batch->items()
+            ->whereKey($item)
+            ->where('status', 'completed')
+            ->firstOrFail();
+
+        $relativePath = match ($type) {
+            'original' => $imageItem->original_path,
+            'output' => $imageItem->output_path,
+            default => abort(404),
+        };
+
+        abort_unless($relativePath, 404);
+
+        $disk = Storage::disk('local');
+
+        abort_unless($disk->exists($relativePath), 404);
+
+        $mimeType = $disk->mimeType($relativePath);
+
+        abort_unless(
+            in_array($mimeType, [
+                'image/jpeg',
+                'image/png',
+                'image/webp',
+            ], true),
+            404
+        );
+
+        return response()->file(
+            $disk->path($relativePath),
+            [
+                'Content-Type' => $mimeType,
+                'Cache-Control' => 'private, no-store',
+                'X-Content-Type-Options' => 'nosniff',
+            ]
+        );
     }
 }

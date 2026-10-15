@@ -25,6 +25,17 @@ class ImageProcessingItemResource extends JsonResource
             ? round(($savedBytes / $originalBytes) * 100, 2)
             : 0;
 
+        $batchReference = $this->batch->batch_reference;
+
+        $previewUrl = fn (string $type): string => route(
+            'image-processing.batches.items.preview',
+            [
+                'batchReference' => $batchReference,
+                'item' => $this->id,
+                'type' => $type,
+            ]
+        );
+
         return [
             'id' => $this->id,
 
@@ -34,6 +45,7 @@ class ImageProcessingItemResource extends JsonResource
                 'width' => $this->original_width,
                 'height' => $this->original_height,
                 'format' => $this->original_format,
+                'preview_url' => $previewUrl('original'),
             ],
 
             'output' => [
@@ -42,6 +54,7 @@ class ImageProcessingItemResource extends JsonResource
                 'width' => $this->output_width,
                 'height' => $this->output_height,
                 'format' => $this->output_format,
+                'preview_url' => $previewUrl('output'),
             ],
 
             'savings' => [
