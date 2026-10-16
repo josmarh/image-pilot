@@ -8,6 +8,7 @@ import {
     createImagePreset,
     updateImagePreset,
     deleteImagePreset,
+    getImagePreview
 } from './api';
 
 window.$ = $;
@@ -365,7 +366,6 @@ $(function () {
                 }, 3000);
             });
     }
-
     
     function handleBatchCompleted(data) {
         $('#processingSection').addClass('d-none');
@@ -442,6 +442,8 @@ $(function () {
     }
 
     function loadBatchItems(batchReference) {
+        revokePreviewObjectUrls();
+
         $('#resultsList').html(`
             <div class="text-center py-4">
                 <div class="spinner-border" role="status"></div>
@@ -453,13 +455,10 @@ $(function () {
 
         getBatchItems(batchReference)
             .done(function (response) {
-                renderBatchItems(response.data);
+                renderBatchItems(response.data, batchReference);
             })
             .fail(function (xhr) {
-                console.error(
-                    'Unable to load batch items:',
-                    xhr
-                );
+                console.error('Unable to load batch items:', xhr);
 
                 $('#resultsList').html(`
                     <div class="alert alert-danger">
@@ -470,7 +469,7 @@ $(function () {
             });
     }
 
-    function renderBatchItems(items) {
+    function renderBatchItems(items, batchReference) {
         if (!items.length) {
             $('#resultsList').html(`
                 <div class="alert alert-warning">
@@ -490,8 +489,37 @@ $(function () {
         }).join('');
 
         $('#resultsList').html(html);
-    }
 
+        items.forEach(item => {
+            if (item.status !== 'completed') {
+                return;
+            }
+
+            const $card = $('#resultsList')
+                .find('.result-item')
+                .filter(function () {
+                    return Number($(this).attr('data-item-id')) === Number(item.id);
+                });
+
+            const $original = $card.find('[data-preview-type="original"]');
+            const $output = $card.find('[data-preview-type="output"]');
+
+            loadImagePreview(
+                $original,
+                batchReference,
+                item.id,
+                'original'
+            );
+
+            loadImagePreview(
+                $output,
+                batchReference,
+                item.id,
+                'output'
+            );
+        });
+    }
+    
     function renderSuccessfulItem(item) {
         const originalSize = Number(item.original.size_bytes) || 0;
         const outputSize = Number(item.output.size_bytes) || 0;
@@ -504,60 +532,80 @@ $(function () {
         const outputDimensions =
             `${item.output.width} x ${item.output.height}`;
 
+        // const originalPreview = escapeHtml(item.original.preview_url);
+        // const outputPreview = escapeHtml(item.output.preview_url);
+
         return `
-            <div class="card border mb-3 result-item">
+            <div class="card border mb-3 result-item" data-item-id="${Number(item.id)}">
                 <div class="card-body">
                     <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
                         <div class="min-w-0">
                             <h6 class="mb-1 text-break">
                                 ${escapeHtml(item.original.filename)}
                             </h6>
-
                             <span class="text-muted small">
                                 ${escapeHtml(item.original.format.toUpperCase())}
                                 · ${originalDimensions}
                             </span>
                         </div>
-
                         <span class="badge rounded-pill text-bg-success">
                             ${savedPercentage}% saved
                         </span>
                     </div>
 
                     <div class="row g-3 align-items-stretch">
-                        <div class="col-12 col-md-5">
-                            <div class="rounded-3 bg-body-tertiary p-3 h-100">
-                                <div class="text-muted small mb-2">
-                                    <i class="bi bi-file-earmark me-1"></i>
+                        <div class="col-12 col-md-6">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="text-muted small fw-semibold mb-2">
                                     Original
+                                </div>
+
+                                <div class="preview-image-container mb-3">
+                                    <img
+                                        data-preview-type="original"
+                                        data-preview-title="${escapeHtml(item.original.filename)}"
+                                        data-preview-dimensions="${originalDimensions}"
+                                        alt="Original: ${escapeHtml(item.original.filename)}"
+                                        class="img-fluid rounded preview-image js-image-preview""
+                                        loading="lazy"
+                                        role="button"
+                                        tabindex="0"
+                                        title="Click to enlarge"
+                                    >
                                 </div>
 
                                 <h5 class="mb-1">
                                     ${formatBytes(originalSize)}
                                 </h5>
-
                                 <div class="text-muted small">
                                     ${originalDimensions}
                                 </div>
                             </div>
                         </div>
 
-                        <div class="col-12 col-md-2 d-flex align-items-center justify-content-center">
-                            <i class="bi bi-arrow-right fs-3 text-muted d-none d-md-block"></i>
-                            <i class="bi bi-arrow-down fs-3 text-muted d-md-none"></i>
-                        </div>
-
-                        <div class="col-12 col-md-5">
-                            <div class="rounded-3 bg-success-subtle p-3 h-100">
-                                <div class="text-success small mb-2">
-                                    <i class="bi bi-file-earmark-check me-1"></i>
+                        <div class="col-12 col-md-6">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="text-success small fw-semibold mb-2">
                                     Optimized
+                                </div>
+
+                                <div class="preview-image-container mb-3">
+                                    <img
+                                        data-preview-type="output"
+                                        data-preview-title="${escapeHtml(item.output.filename)}"
+                                        data-preview-dimensions="${outputDimensions}"
+                                        alt="Optimized: ${escapeHtml(item.output.filename)}"
+                                        class="img-fluid rounded preview-image js-image-preview""
+                                        loading="lazy"
+                                        role="button"
+                                        tabindex="0"
+                                        title="Click to enlarge"
+                                    >
                                 </div>
 
                                 <h5 class="mb-1 text-success">
                                     ${formatBytes(outputSize)}
                                 </h5>
-
                                 <div class="text-muted small">
                                     ${outputDimensions}
                                     · ${escapeHtml(item.output.format.toUpperCase())}
@@ -570,7 +618,6 @@ $(function () {
                         <span class="text-muted small text-break">
                             Output: ${escapeHtml(item.output.filename)}
                         </span>
-
                         <span class="text-success small fw-semibold">
                             ${formatBytes(savedBytes)} saved
                         </span>
@@ -1301,6 +1348,43 @@ $(function () {
 
     loadImagePresets();
 
+    const previewObjectUrls = new Set();
+
+    function loadImagePreview($image, batchReference, itemId, type) {
+        getImagePreview(batchReference, itemId, type)
+            .done((blob) => {
+                // Ignore responses for images that have already been removed.
+                if (!$image.length || !document.documentElement.contains($image[0])) {
+                    return;
+                }
+
+                const objectUrl = URL.createObjectURL(blob);
+
+                previewObjectUrls.add(objectUrl);
+                $image.attr('src', objectUrl);
+
+                $image.one('load error', function () {
+                    // URLs remain available while the image is displayed.
+                    // They are revoked when results are cleared or replaced.
+                });
+            })
+            .fail(() => {
+                if ($image.length && document.documentElement.contains($image[0])) {
+                    $image.replaceWith(`
+                        <div class="text-muted small py-4 text-center">
+                            Preview unavailable
+                        </div>
+                    `);
+                }
+            });
+    }
+
+    function revokePreviewObjectUrls() {
+        previewObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+        previewObjectUrls.clear();
+    }
+
+
     /*
      * Update UI visibility
      */
@@ -1392,6 +1476,53 @@ $(function () {
             .text(value)
             .html();
     }
+
+
+    function openImagePreview(image) {
+        const imageUrl = image.getAttribute('src');
+
+        if (!imageUrl || !imageUrl.startsWith('blob:')) {
+            return;
+        }
+
+        $('#imagePreviewModalTitle').text(
+            image.dataset.previewTitle || 'Image preview'
+        );
+
+        $('#imagePreviewModalDimensions').text(
+            image.dataset.previewDimensions || ''
+        );
+
+        $('#imagePreviewModalImage')
+            .attr('src', imageUrl)
+            .attr('alt', image.alt || 'Enlarged image preview');
+
+        const modalElement = document.getElementById('imagePreviewModal');
+
+        bootstrap.Modal
+            .getOrCreateInstance(modalElement)
+            .show();
+    }
+
+    $(document).on('click', '.js-image-preview', function () {
+        console.log('Image preview clicked:', this);
+        console.log('Image source:', this.getAttribute('src'));
+        console.log('Bootstrap available:', typeof bootstrap);
+
+        openImagePreview(this);
+    });
+
+    $(document).on('keydown', '.js-image-preview', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openImagePreview(this);
+        }
+    });
+
+    $('#imagePreviewModal').on('hidden.bs.modal', function () {
+        $('#imagePreviewModalImage').attr('src', '');
+    });
+
 
     /*
      * Initial state

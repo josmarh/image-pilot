@@ -11,11 +11,13 @@ use App\Services\ImageProcessing\ImageBatchProcessingService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Throwable;
 use ZipArchive;
+use RuntimeException;
 
 class ImageProcessingBatchController extends Controller
 {
@@ -100,41 +102,18 @@ class ImageProcessingBatchController extends Controller
             ->with('items')
             ->firstOrFail();
 
-        if (!in_array($batch->status, [
-            'completed',
-            'partial',
-        ], true)) {
+        if (!in_array($batch->status, ['completed', 'partial'], true)) {
             abort(409, 'The batch has not finished processing.');
-        }
-
-        $items = $batch->items
-            ->where('status', 'completed')
-            ->filter(
-                fn ($item) => filled($item->output_path)
-            );
-
-        if ($items->isEmpty()) {
-            abort(404, 'No processed files are available for download.');
         }
 
         $disk = Storage::disk('local');
 
-        $zipDirectory = storage_path('app/imagepilot/tmp');
+        // Collect existing output files before creating the archive.
+        $items = $batch->items
+            ->where('status', 'completed')
+            ->filter(fn ($item) => filled($item->output_path));
 
-        if (!is_dir($zipDirectory)) {
-            mkdir($zipDirectory, 0755, true);
-        }
-
-        $zipPath = $zipDirectory . '/' . $batch->batch_reference . '.zip';
-
-        $zip = new ZipArchive();
-
-        if ($zip->open(
-            $zipPath,
-            ZipArchive::CREATE | ZipArchive::OVERWRITE
-        ) !== true) {
-            abort(500, 'Unable to create the download archive.');
-        }
+        $files = [];
 
         foreach ($items as $item) {
             if (!$disk->exists($item->output_path)) {
@@ -143,32 +122,145 @@ class ImageProcessingBatchController extends Controller
 
             $absolutePath = $disk->path($item->output_path);
 
-            $filename = $item->output_filename
-                ?: basename($absolutePath);
+            if (!is_file($absolutePath) || !is_readable($absolutePath)) {
+                continue;
+            }
 
-            $zip->addFile(
-                $absolutePath,
-                $filename
+            $filename = basename(
+                $item->output_filename ?: $absolutePath
             );
+
+            $files[] = [
+                'path' => $absolutePath,
+                'filename' => $filename,
+            ];
         }
 
-        $zip->close();
-
-        if (!file_exists($zipPath) || filesize($zipPath) === 0) {
-            @unlink($zipPath);
-
-            abort(
-                404,
-                'No processed files are available for download.'
-            );
+        if (empty($files)) {
+            abort(404, 'No processed files are available for download.');
         }
 
-        return response()
-            ->download(
+        $zipDirectory = storage_path('app/imagepilot/tmp');
+
+        if (
+            !is_dir($zipDirectory) &&
+            !mkdir($zipDirectory, 0755, true) &&
+            !is_dir($zipDirectory)
+        ) {
+            abort(500, 'Unable to prepare the download directory.');
+        }
+
+        // Unique archive paths prevent concurrent requests from overwriting
+        // each other's ZIP files.
+        $zipPath = $zipDirectory
+            . '/'
+            . $batch->batch_reference
+            . '-'
+            . Str::uuid()
+            . '.zip';
+
+        $zip = new ZipArchive();
+
+        $opened = false;
+
+        try {
+            $openResult = $zip->open(
                 $zipPath,
-                "imagepilot-{$batch->batch_reference}.zip"
-            )
-            ->deleteFileAfterSend(true);
+                ZipArchive::CREATE | ZipArchive::EXCL
+            );
+
+            if ($openResult !== true) {
+                throw new RuntimeException(
+                    'Unable to create the download archive.'
+                );
+            }
+
+            $opened = true;
+
+            // Prevent duplicate filenames, including case-only differences
+            // that can conflict when extracted on some operating systems.
+            $usedNames = [];
+
+            foreach ($files as $file) {
+                $filename = $file['filename'];
+
+                $extension = pathinfo(
+                    $filename,
+                    PATHINFO_EXTENSION
+                );
+
+                $basename = pathinfo(
+                    $filename,
+                    PATHINFO_FILENAME
+                );
+
+                if ($basename === '') {
+                    $basename = 'image';
+                }
+
+                $candidate = $filename;
+                $counter = 2;
+
+                while (isset($usedNames[strtolower($candidate)])) {
+                    $suffix = '-' . $counter++;
+
+                    $candidate = $basename
+                        . $suffix
+                        . ($extension !== ''
+                            ? '.' . $extension
+                            : '');
+                }
+
+                $usedNames[strtolower($candidate)] = true;
+
+                if (!$zip->addFile($file['path'], $candidate)) {
+                    throw new RuntimeException(
+                        "Unable to add {$candidate} to the archive."
+                    );
+                }
+            }
+
+            if (!$zip->close()) {
+                $opened = false;
+
+                throw new RuntimeException(
+                    'Unable to finalize the download archive.'
+                );
+            }
+
+            $opened = false;
+
+            clearstatcache(true, $zipPath);
+
+            if (
+                !is_file($zipPath) ||
+                filesize($zipPath) === false ||
+                filesize($zipPath) === 0
+            ) {
+                throw new RuntimeException(
+                    'The generated download archive is empty.'
+                );
+            }
+
+            return response()
+                ->download(
+                    $zipPath,
+                    "imagepilot-{$batch->batch_reference}.zip"
+                )
+                ->deleteFileAfterSend(true);
+        } catch (Throwable $exception) {
+            if ($opened) {
+                $zip->close();
+            }
+
+            if (is_file($zipPath)) {
+                @unlink($zipPath);
+            }
+
+            report($exception);
+
+            abort(500, 'Unable to prepare the ZIP download. Please try again.');
+        }
     }
 
     public function preview(
@@ -176,7 +268,7 @@ class ImageProcessingBatchController extends Controller
         string $batchReference,
         int $item,
         string $type
-    ): StreamedResponse {
+    ): BinaryFileResponse {
         $batch = ImageProcessingBatch::query()
             ->where('batch_reference', $batchReference)
             ->where('user_id', $request->user()->id)

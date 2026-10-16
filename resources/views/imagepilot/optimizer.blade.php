@@ -591,4 +591,50 @@
     </div>
 
 </div>
+
+
+<div
+    class="modal fade"
+    id="imagePreviewModal"
+    tabindex="-1"
+    aria-labelledby="imagePreviewModalTitle"
+    aria-hidden="true"
+>
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header">
+                <div class="min-w-0">
+                    <h5
+                        class="modal-title text-break"
+                        id="imagePreviewModalTitle"
+                    >
+                        Image preview
+                    </h5>
+
+                    <div
+                        class="small text-muted"
+                        id="imagePreviewModalDimensions"
+                    ></div>
+                </div>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"
+                ></button>
+            </div>
+
+            <div class="modal-body image-preview-modal-body">
+                <img
+                    id="imagePreviewModalImage"
+                    src=""
+                    alt="Enlarged image preview"
+                    class="img-fluid"
+                >
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection

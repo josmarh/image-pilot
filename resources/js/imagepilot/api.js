@@ -152,3 +152,17 @@ export function getBatches(page = 1) {
         data: { page },
     });
 }
+
+export function getImagePreview(batchReference, itemId, type) {
+    return $.ajax({
+        url: `${API_BASE_URL}/image-processing/batches/${encodeURIComponent(batchReference)}/items/${encodeURIComponent(itemId)}/preview/${encodeURIComponent(type)}`,
+        method: 'GET',
+        headers: {
+            ...getHeaders(),
+            Accept: 'image/avif,image/webp,image/png,image/jpeg,*/*',
+        },
+        xhrFields: {
+            responseType: 'blob',
+        },
+    });
+}
