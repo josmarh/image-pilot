@@ -7,6 +7,82 @@ function getToken() {
     return localStorage.getItem('imagepilot_token');
 }
 
+const USER_STORAGE_KEY = 'imagepilot_user';
+
+export function getStoredUser() {
+    const user = localStorage.getItem(USER_STORAGE_KEY);
+
+    if (!user) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(user);
+    } catch {
+        localStorage.removeItem(USER_STORAGE_KEY);
+
+        return null;
+    }
+}
+
+export function login(email, password) {
+    return $.ajax({
+        url: `${API_BASE_URL}/auth/login`,
+        method: 'POST',
+        headers: {
+            Accept: 'application/json',
+        },
+        contentType: 'application/json',
+        data: JSON.stringify({
+            email,
+            password,
+        }),
+    }).then(response => {
+        const token = response?.data?.token;
+        const user = response?.data?.user;
+
+        if (!token || !user) {
+            throw new Error(
+                'The login response did not contain valid authentication data.'
+            );
+        }
+
+        localStorage.setItem('imagepilot_token', token);
+        localStorage.setItem(
+            USER_STORAGE_KEY,
+            JSON.stringify(user)
+        );
+
+        return response;
+    });
+}
+
+export function logout() {
+    const token = getToken();
+
+    if (!token) {
+        clearAuthentication();
+
+        return $.Deferred().resolve().promise();
+    }
+
+    return $.ajax({
+        url: `${API_BASE_URL}/auth/logout`,
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+        },
+    }).always(() => {
+        clearAuthentication();
+    });
+}
+
+export function clearAuthentication() {
+    localStorage.removeItem('imagepilot_token');
+    localStorage.removeItem(USER_STORAGE_KEY);
+}
+
 function getHeaders() {
     const token = getToken();
 
@@ -166,3 +242,43 @@ export function getImagePreview(batchReference, itemId, type) {
         },
     });
 }
+
+// Handle expired or invalid authentication tokens globally.
+$(document).on(
+    'ajaxError.imagepilotAuth',
+    function (_event, xhr, settings) {
+        if (xhr.status !== 401) {
+            return;
+        }
+
+        const requestUrl = new URL(
+            settings.url,
+            window.location.origin
+        );
+
+        // Only handle requests to this application's API.
+        if (
+            requestUrl.origin !== window.location.origin ||
+            !requestUrl.pathname.startsWith('/api/')
+        ) {
+            return;
+        }
+
+        // Invalid login credentials should remain on the login page.
+        if (requestUrl.pathname === '/api/auth/login') {
+            return;
+        }
+
+        // Only clear the session when a token was stored.
+        if (!getToken()) {
+            return;
+        }
+
+        clearAuthentication();
+
+        // Avoid reloading the login page unnecessarily.
+        if (window.location.pathname !== '/login') {
+            window.location.assign('/login');
+        }
+    }
+);

@@ -42,6 +42,12 @@ $(function () {
     const $quality = $('#quality');
     const $qualityValue = $('#qualityValue');
 
+    function isAuthenticated() {
+        return Boolean(
+            localStorage.getItem('imagepilot_token')
+        );
+    }
+
     /*
      * Open file selector
      */
@@ -912,6 +918,7 @@ $(function () {
     function loadImagePresets(selectedPresetId = null) {
         setPresetFeedback('Loading presets...', 'text-muted');
 
+        
         getImagePresets()
             .done(function (response) {
                 imagePresets = Array.isArray(response.data)
@@ -1346,7 +1353,11 @@ $(function () {
             });
     });
 
-    loadImagePresets();
+    if ($('#imageDropzone').length &&
+        localStorage.getItem('imagepilot_token')
+    ) {
+        loadImagePresets();
+    }
 
     const previewObjectUrls = new Set();
 

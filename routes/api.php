@@ -6,9 +6,6 @@ use App\Http\Controllers\Api\ImageProcessingBatchController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ImagePresetController;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
 
 Route::post(
     '/auth/login',
@@ -35,7 +32,6 @@ Route::middleware('auth:sanctum')->group(function () {
         '/image-processing/batches/{batchReference}/download',
         [ImageProcessingBatchController::class, 'download']
     )->name('image-processing.batches.download');
-
 
     Route::get('/image-presets', [
         ImagePresetController::class,
@@ -72,4 +68,9 @@ Route::middleware('auth:sanctum')->group(function () {
         [ImageProcessingBatchController::class, 'preview']
     )->whereIn('type', ['original', 'output'])
     ->name('image-processing.batches.items.preview');
+
+    Route::post('/auth/logout', [
+        AuthController::class,
+        'logout',
+    ])->name('api.auth.logout');
 });

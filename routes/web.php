@@ -11,3 +11,6 @@ Route::view('/batches', 'imagepilot.batches')
 
 Route::view('/account', 'imagepilot.account')
     ->name('imagepilot.account');
+
+Route::view('/login', 'imagepilot.login')
+    ->name('imagepilot.login');

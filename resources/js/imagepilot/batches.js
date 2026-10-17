@@ -589,7 +589,15 @@ $(function () {
         $details.addClass('d-none');
     });
 
-    
+    if (!$('#batchesContainer').length) {
+        return;
+    }
+
+    if (!localStorage.getItem('imagepilot_token')) {
+        window.location.href = '/login';
+        return;
+    }
+
     loadBatches(1);
 
     const batchPollingTimer = window.setInterval(() => {

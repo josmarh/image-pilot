@@ -80,13 +80,19 @@
                         </a>
                     </li>
 
-                    <li class="nav-item ms-lg-2">
-                        <a
-                            href="{{ route('imagepilot.account') }}"
-                            class="btn btn-outline-primary btn-sm"
-                        >
-                            <i class="bi bi-person me-1"></i>
-                            Account
+                    <li class="nav-item ms-lg-2" id="guestNavigation">
+                        <a href="{{ route('imagepilot.login') }}"
+                        class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>
+                            Login
+                        </a>
+                    </li>
+
+                    <li class="nav-item ms-lg-2 d-none" id="authenticatedNavigation">
+                        <a href="{{ route('imagepilot.account') }}"
+                        class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-person-circle me-1"></i>
+                            <span id="navbarUserName">Account</span>
                         </a>
                     </li>
 

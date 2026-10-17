@@ -6,3 +6,5 @@ window.bootstrap = bootstrap;
 
 import './imagepilot/optimizer';
 import './imagepilot/batches';
+import './imagepilot/account';
+import './imagepilot/navigation';
