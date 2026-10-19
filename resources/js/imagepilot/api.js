@@ -2,12 +2,49 @@
 import $ from 'jquery';
 
 const API_BASE_URL = '/api';
+const USER_STORAGE_KEY = 'imagepilot_user';
+const GUEST_BATCH_TOKEN_PREFIX = 'imagepilot_guest_batch_token_';
 
 function getToken() {
     return localStorage.getItem('imagepilot_token');
 }
 
-const USER_STORAGE_KEY = 'imagepilot_user';
+function getHeaders() {
+    const token = getToken();
+
+    return token
+        ? {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+        }
+        : {
+            Accept: 'application/json',
+        };
+}
+
+function getGuestBatchToken(batchReference) {
+    return localStorage.getItem(
+        `${GUEST_BATCH_TOKEN_PREFIX}${batchReference}`
+    );
+}
+
+function storeGuestBatchToken(batchReference, token) {
+    localStorage.setItem(
+        `${GUEST_BATCH_TOKEN_PREFIX}${batchReference}`,
+        token
+    );
+}
+
+function getBatchHeaders(batchReference) {
+    const headers = getHeaders();
+    const guestToken = getGuestBatchToken(batchReference);
+
+    if (guestToken) {
+        headers['X-Guest-Batch-Token'] = guestToken;
+    }
+
+    return headers;
+}
 
 export function getStoredUser() {
     const user = localStorage.getItem(USER_STORAGE_KEY);
@@ -83,19 +120,6 @@ export function clearAuthentication() {
     localStorage.removeItem(USER_STORAGE_KEY);
 }
 
-function getHeaders() {
-    const token = getToken();
-
-    return token
-        ? {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/json',
-        }
-        : {
-            Accept: 'application/json',
-        };
-}
-
 /**
  * Upload images and create a processing batch.
  */
@@ -130,6 +154,17 @@ export function createBatch(files, settings) {
         data: formData,
         processData: false,
         contentType: false,
+    }).then(response => {
+        const batch = response?.data;
+
+        if (batch?.batch_reference && batch?.guest_access_token) {
+            storeGuestBatchToken(
+                batch.batch_reference,
+                batch.guest_access_token
+            );
+        }
+
+        return response;
     });
 }
 
@@ -137,19 +172,15 @@ export function getBatch(batchReference) {
     return $.ajax({
         url: `${API_BASE_URL}/image-processing/batches/${encodeURIComponent(batchReference)}`,
         method: 'GET',
-        headers: getHeaders(),
+        headers: getBatchHeaders(batchReference),
     });
 }
 
 export function downloadBatch(batchReference) {
-    const token = getToken();
-
     return $.ajax({
         url: `${API_BASE_URL}/image-processing/batches/${encodeURIComponent(batchReference)}/download`,
         method: 'GET',
-        headers: token
-            ? { Authorization: `Bearer ${token}` }
-            : {},
+        headers: getBatchHeaders(batchReference),
         xhrFields: {
             responseType: 'blob',
         },
@@ -160,7 +191,7 @@ export function getBatchItems(batchReference) {
     return $.ajax({
         url: `${API_BASE_URL}/image-processing/batches/${encodeURIComponent(batchReference)}/items`,
         method: 'GET',
-        headers: getHeaders(),
+        headers: getBatchHeaders(batchReference),
     });
 }
 
@@ -234,7 +265,7 @@ export function getImagePreview(batchReference, itemId, type) {
         url: `${API_BASE_URL}/image-processing/batches/${encodeURIComponent(batchReference)}/items/${encodeURIComponent(itemId)}/preview/${encodeURIComponent(type)}`,
         method: 'GET',
         headers: {
-            ...getHeaders(),
+            ...getBatchHeaders(batchReference),
             Accept: 'image/avif,image/webp,image/png,image/jpeg,*/*',
         },
         xhrFields: {
@@ -256,7 +287,6 @@ $(document).on(
             window.location.origin
         );
 
-        // Only handle requests to this application's API.
         if (
             requestUrl.origin !== window.location.origin ||
             !requestUrl.pathname.startsWith('/api/')
@@ -264,19 +294,26 @@ $(document).on(
             return;
         }
 
-        // Invalid login credentials should remain on the login page.
         if (requestUrl.pathname === '/api/auth/login') {
             return;
         }
 
-        // Only clear the session when a token was stored.
+        // Public, batch-specific endpoints may use guest access tokens.
+        // Their authentication errors should not clear the user's account session.
+        if (
+            /^\/api\/image-processing\/batches\/[^/]+(?:\/|$)/.test(
+                requestUrl.pathname
+            )
+        ) {
+            return;
+        }
+
         if (!getToken()) {
             return;
         }
 
         clearAuthentication();
 
-        // Avoid reloading the login page unnecessarily.
         if (window.location.pathname !== '/login') {
             window.location.assign('/login');
         }

@@ -27,9 +27,22 @@ class ImageBatchProcessingService
      */
     public function queue(
         array $files,
-        int $userId,
+        ?int $userId,
         array $settings = [],
+        ?string $guestTokenHash = null,
     ): ImageProcessingBatch {
+        if ($userId === null && $guestTokenHash === null) {
+            throw new InvalidArgumentException(
+                'Guest batches require a guest access token hash.'
+            );
+        }
+
+        if ($userId !== null && $guestTokenHash !== null) {
+            throw new InvalidArgumentException(
+                'Authenticated batches cannot use guest access tokens.'
+            );
+        }
+
         if (empty($files)) {
             throw new InvalidArgumentException(
                 'At least one image must be provided.'
@@ -121,7 +134,8 @@ class ImageBatchProcessingService
                 $files,
                 $settings,
                 $storedFiles,
-                $totalOriginalSize
+                $totalOriginalSize,
+                $guestTokenHash
             ) {
                 $batch = ImageProcessingBatch::create([
                     'user_id' => $userId,
@@ -136,6 +150,7 @@ class ImageBatchProcessingService
                     'expires_at' => now()->addDays(
                         config('imagepilot.batch.retention_days', 1)
                     ),
+                    'guest_token_hash' => $guestTokenHash,
                 ]);
 
                 foreach ($storedFiles as $storedFile) {

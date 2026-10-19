@@ -41,24 +41,39 @@ class ImageProcessingBatchController extends Controller
     public function store(
         StoreImageBatchRequest $request
     ): JsonResponse {
+        $user = $request->user();
+
+        // Guest tokens are returned only once, during batch creation.
+        $guestToken = $user === null
+            ? bin2hex(random_bytes(32))
+            : null;
+
         $batch = $this->batchService->queue(
             files: $request->file('images'),
-            userId: $request->user()->id,
+            userId: $user?->id,
             settings: $request->processingSettings(),
+            guestTokenHash: $guestToken !== null
+                ? hash('sha256', $guestToken)
+                : null,
         );
+
+        $data = [
+            'batch_reference' => $batch->batch_reference,
+            'status' => $batch->status,
+            'original_count' => $batch->original_count,
+            'successful_count' => $batch->successful_count,
+            'failed_count' => $batch->failed_count,
+            'original_size_bytes' => $batch->original_size_bytes,
+            'optimized_size_bytes' => $batch->optimized_size_bytes,
+        ];
+
+        if ($guestToken !== null) {
+            $data['guest_access_token'] = $guestToken;
+        }
 
         return response()->json([
             'message' => 'Images uploaded successfully and queued for processing.',
-
-            'data' => [
-                'batch_reference' => $batch->batch_reference,
-                'status' => $batch->status,
-                'original_count' => $batch->original_count,
-                'successful_count' => $batch->successful_count,
-                'failed_count' => $batch->failed_count,
-                'original_size_bytes' => $batch->original_size_bytes,
-                'optimized_size_bytes' => $batch->optimized_size_bytes,
-            ],
+            'data' => $data,
         ], 202);
     }
 
@@ -66,11 +81,16 @@ class ImageProcessingBatchController extends Controller
         Request $request,
         string $batchReference
     ): ImageProcessingBatchResource {
-        $batch = ImageProcessingBatch::query()
-            ->where('batch_reference', $batchReference)
-            ->where('user_id', $request->user()->id)
-            ->with('items')
-            ->firstOrFail();
+        // $batch = ImageProcessingBatch::query()
+        //     ->where('batch_reference', $batchReference)
+        //     ->where('user_id', $request->user()->id)
+        //     ->with('items')
+        //     ->firstOrFail();
+        $batch = $this->findAuthorizedBatch(
+                $request,
+                $batchReference,
+                withItems: true,
+            );
 
         return new ImageProcessingBatchResource($batch);
     }
@@ -79,10 +99,14 @@ class ImageProcessingBatchController extends Controller
         Request $request,
         string $batchReference
     ): AnonymousResourceCollection {
-        $batch = ImageProcessingBatch::query()
-            ->where('batch_reference', $batchReference)
-            ->where('user_id', $request->user()->id)
-            ->firstOrFail();
+        // $batch = ImageProcessingBatch::query()
+        //     ->where('batch_reference', $batchReference)
+        //     ->where('user_id', $request->user()->id)
+        //     ->firstOrFail();
+        $batch = $this->findAuthorizedBatch(
+                $request,
+                $batchReference,
+            );
 
         $items = $batch->items()
             ->with('batch')
@@ -96,11 +120,16 @@ class ImageProcessingBatchController extends Controller
         Request $request,
         string $batchReference
     ): BinaryFileResponse {
-        $batch = ImageProcessingBatch::query()
-            ->where('batch_reference', $batchReference)
-            ->where('user_id', $request->user()->id)
-            ->with('items')
-            ->firstOrFail();
+        // $batch = ImageProcessingBatch::query()
+        //     ->where('batch_reference', $batchReference)
+        //     ->where('user_id', $request->user()->id)
+        //     ->with('items')
+        //     ->firstOrFail();
+        $batch = $this->findAuthorizedBatch(
+                $request,
+                $batchReference,
+                withItems: true,
+            );
 
         if (!in_array($batch->status, ['completed', 'partial'], true)) {
             abort(409, 'The batch has not finished processing.');
@@ -269,10 +298,14 @@ class ImageProcessingBatchController extends Controller
         int $item,
         string $type
     ): BinaryFileResponse {
-        $batch = ImageProcessingBatch::query()
-            ->where('batch_reference', $batchReference)
-            ->where('user_id', $request->user()->id)
-            ->firstOrFail();
+        // $batch = ImageProcessingBatch::query()
+        //     ->where('batch_reference', $batchReference)
+        //     ->where('user_id', $request->user()->id)
+        //     ->firstOrFail();
+        $batch = $this->findAuthorizedBatch(
+                $request,
+                $batchReference,
+            );
 
         $imageItem = $batch->items()
             ->whereKey($item)
@@ -310,5 +343,67 @@ class ImageProcessingBatchController extends Controller
                 'X-Content-Type-Options' => 'nosniff',
             ]
         );
+    }
+
+    private function findAuthorizedBatch(
+        Request $request,
+        string $batchReference,
+        bool $withItems = false,
+    ): ImageProcessingBatch {
+        $query = ImageProcessingBatch::query()
+            ->where('batch_reference', $batchReference);
+
+        $user = $request->user();
+
+        if ($user !== null) {
+            $query->where('user_id', $user->id);
+        } else {
+            $token = $request->header('X-Guest-Batch-Token');
+
+            if (!is_string($token) || $token === '') {
+                abort(401, 'Guest batch access token is required.');
+            }
+
+            $query
+                ->whereNull('user_id')
+                ->whereNotNull('guest_token_hash');
+
+            $batch = $query->firstOrFail();
+
+            if (!hash_equals(
+                $batch->guest_token_hash,
+                hash('sha256', $token)
+            )) {
+                abort(404);
+            }
+
+            if (
+                $batch->expires_at !== null &&
+                $batch->expires_at->isPast()
+            ) {
+                abort(410, 'This batch has expired.');
+            }
+
+            if ($withItems) {
+                $batch->load('items');
+            }
+
+            return $batch;
+        }
+
+        if ($withItems) {
+            $query->with('items');
+        }
+
+        $batch = $query->firstOrFail();
+
+        if (
+            $batch->expires_at !== null &&
+            $batch->expires_at->isPast()
+        ) {
+            abort(410, 'This batch has expired.');
+        }
+
+        return $batch;
     }
 }

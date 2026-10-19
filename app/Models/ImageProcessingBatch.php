@@ -11,6 +11,7 @@ class ImageProcessingBatch extends Model
     protected $fillable = [
         'user_id',
         'batch_reference',
+        'guest_token_hash',
         'original_count',
         'successful_count',
         'failed_count',

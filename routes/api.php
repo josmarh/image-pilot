@@ -12,27 +12,34 @@ Route::post(
     [AuthController::class, 'login']
 )->name('api.auth.login');
 
+Route::post(
+    '/image-processing/batches',
+    [ImageProcessingBatchController::class, 'store']
+)->name('image-processing.batches.store');
+
+Route::get(
+    '/image-processing/batches/{batchReference}',
+    [ImageProcessingBatchController::class, 'show']
+)->name('image-processing.batches.show');
+
+Route::get(
+    '/image-processing/batches/{batchReference}/items',
+    [ImageProcessingBatchController::class, 'items']
+)->name('image-processing.batches.items');
+
+Route::get(
+    '/image-processing/batches/{batchReference}/download',
+    [ImageProcessingBatchController::class, 'download']
+)->name('image-processing.batches.download');
+
+Route::get(
+    '/image-processing/batches/{batchReference}/items/{item}/preview/{type}',
+    [ImageProcessingBatchController::class, 'preview']
+)->whereIn('type', ['original', 'output'])
+    ->name('image-processing.batches.items.preview');
+
+    
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post(
-        '/image-processing/batches',
-        [ImageProcessingBatchController::class, 'store']
-    )->name('image-processing.batches.store');
-
-    Route::get(
-        '/image-processing/batches/{batchReference}',
-        [ImageProcessingBatchController::class, 'show']
-    )->name('image-processing.batches.show');
-
-    Route::get(
-        '/image-processing/batches/{batchReference}/items',
-        [ImageProcessingBatchController::class, 'items']
-    )->name('image-processing.batches.items');
-
-    Route::get(
-        '/image-processing/batches/{batchReference}/download',
-        [ImageProcessingBatchController::class, 'download']
-    )->name('image-processing.batches.download');
-
     Route::get('/image-presets', [
         ImagePresetController::class,
         'index',
@@ -62,12 +69,6 @@ Route::middleware('auth:sanctum')->group(function () {
         '/image-processing/batches',
         [ImageProcessingBatchController::class, 'index']
     )->name('image-processing.batches.index');
-
-    Route::get(
-        '/image-processing/batches/{batchReference}/items/{item}/preview/{type}',
-        [ImageProcessingBatchController::class, 'preview']
-    )->whereIn('type', ['original', 'output'])
-    ->name('image-processing.batches.items.preview');
 
     Route::post('/auth/logout', [
         AuthController::class,
