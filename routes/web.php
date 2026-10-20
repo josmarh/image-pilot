@@ -14,3 +14,6 @@ Route::view('/account', 'imagepilot.account')
 
 Route::view('/login', 'imagepilot.login')
     ->name('imagepilot.login');
+
+Route::view('/register', 'imagepilot.register')
+    ->name('imagepilot.register');

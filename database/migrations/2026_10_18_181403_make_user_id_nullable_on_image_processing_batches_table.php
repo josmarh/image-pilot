@@ -14,10 +14,7 @@ return new class extends Migration
     {
         Schema::table('image_processing_batches', function (Blueprint $table) {
             $table->dropForeign(['user_id']);
-
-            $table->foreignId('user_id')
-                ->nullable()
-                ->change();
+            $table->unsignedBigInteger('user_id')->nullable()->change();
 
             $table->foreign('user_id')
                 ->references('id')

@@ -94,6 +94,40 @@ export function login(email, password) {
     });
 }
 
+export function register(name, email, password, passwordConfirmation) {
+    return $.ajax({
+        url: `${API_BASE_URL}/auth/register`,
+        method: 'POST',
+        headers: {
+            Accept: 'application/json',
+        },
+        contentType: 'application/json',
+        data: JSON.stringify({
+            name,
+            email,
+            password,
+            password_confirmation: passwordConfirmation,
+        }),
+    }).then(response => {
+        const token = response?.data?.token;
+        const user = response?.data?.user;
+
+        if (!token || !user) {
+            throw new Error(
+                'The registration response did not contain valid authentication data.'
+            );
+        }
+
+        localStorage.setItem('imagepilot_token', token);
+        localStorage.setItem(
+            USER_STORAGE_KEY,
+            JSON.stringify(user)
+        );
+
+        return response;
+    });
+}
+
 export function logout() {
     const token = getToken();
 
@@ -294,7 +328,8 @@ $(document).on(
             return;
         }
 
-        if (requestUrl.pathname === '/api/auth/login') {
+        if (requestUrl.pathname === '/api/auth/login' ||
+            requestUrl.pathname === '/api/auth/register') {
             return;
         }
 

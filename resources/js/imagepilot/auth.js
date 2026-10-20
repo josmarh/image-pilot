@@ -1,10 +1,11 @@
 import $ from 'jquery';
-import { login } from './api';
+import { login, register } from './api';
 
 $(function () {
     const $loginForm = $('#loginForm');
+    const $registerForm = $('#registerForm');
 
-    if (!$loginForm.length) {
+    if (!$loginForm.length && !$registerForm.length) {
         return;
     }
 
@@ -14,53 +15,138 @@ $(function () {
         return;
     }
 
-    const $loginButton = $('#loginButton');
-    const $loginButtonText = $('#loginButtonText');
-    const $loginSpinner = $('#loginSpinner');
-    const $loginError = $('#loginError');
+    function getErrorMessage(xhr, fallback) {
+        const response = xhr.responseJSON;
 
-    function showError(message) {
-        $loginError
-            .text(message)
-            .removeClass('d-none');
+        if (response?.errors) {
+            const firstError = Object.values(response.errors)
+                .flat()
+                .find(message => typeof message === 'string');
+
+            if (firstError) {
+                return firstError;
+            }
+        }
+
+        return response?.message || fallback;
     }
 
-    function setLoading(loading) {
-        $loginButton.prop('disabled', loading);
-
-        $loginButtonText.text(
-            loading ? 'Signing in...' : 'Sign in'
-        );
-
-        $loginSpinner.toggleClass('d-none', !loading);
+    function setLoading($button, $buttonText, $spinner, loading, labels) {
+        $button.prop('disabled', loading);
+        $buttonText.text(loading ? labels.loading : labels.idle);
+        $spinner.toggleClass('d-none', !loading);
     }
 
-    $loginForm.on('submit', function (event) {
-        event.preventDefault();
+    function showError($error, message) {
+        $error.text(message).removeClass('d-none');
+    }
 
-        $loginError
-            .addClass('d-none')
-            .text('');
+    if ($loginForm.length) {
+        const $button = $('#loginButton');
+        const $buttonText = $('#loginButtonText');
+        const $spinner = $('#loginSpinner');
+        const $error = $('#loginError');
 
-        setLoading(true);
+        $loginForm.on('submit', function (event) {
+            event.preventDefault();
 
-        const email = $('#email').val().trim();
-        const password = $('#password').val();
+            $error.addClass('d-none').text('');
 
-        login(email, password)
-            .done(function () {
-                // The login helper stores the token and user.
-                window.location.href = '/account';
-            })
-            .fail(function (xhr) {
-                const message =
-                    xhr.responseJSON?.message ||
-                    'Unable to sign in. Please try again.';
+            setLoading(
+                $button,
+                $buttonText,
+                $spinner,
+                true,
+                { loading: 'Signing in...', idle: 'Sign in' }
+            );
 
-                showError(message);
-            })
-            .always(function () {
-                setLoading(false);
-            });
-    });
+            const email = String($('#email').val()).trim();
+            const password = $('#password').val();
+
+            login(email, password)
+                .done(function () {
+                    window.location.href = '/account';
+                })
+                .fail(function (xhr) {
+                    showError(
+                        $error,
+                        getErrorMessage(
+                            xhr,
+                            'Unable to sign in. Please try again.'
+                        )
+                    );
+                })
+                .always(function () {
+                    setLoading(
+                        $button,
+                        $buttonText,
+                        $spinner,
+                        false,
+                        { loading: 'Signing in...', idle: 'Sign in' }
+                    );
+                });
+        });
+    }
+
+    if ($registerForm.length) {
+        const $button = $('#registerButton');
+        const $buttonText = $('#registerButtonText');
+        const $spinner = $('#registerSpinner');
+        const $error = $('#registerError');
+
+        $registerForm.on('submit', function (event) {
+            event.preventDefault();
+
+            $error.addClass('d-none').text('');
+
+            const name = String($('#name').val()).trim();
+            const email = String($('#email').val()).trim();
+            const password = $('#password').val();
+            const passwordConfirmation = $(
+                '#password_confirmation'
+            ).val();
+
+            if (password !== passwordConfirmation) {
+                showError($error, 'The passwords do not match.');
+                return;
+            }
+
+            setLoading(
+                $button,
+                $buttonText,
+                $spinner,
+                true,
+                {
+                    loading: 'Creating account...',
+                    idle: 'Create account',
+                }
+            );
+
+            register(name, email, password, passwordConfirmation)
+                .done(function () {
+                    window.location.href = '/account';
+                })
+                .fail(function (xhr) {
+                    showError(
+                        $error,
+                        getErrorMessage(
+                            xhr,
+                            'Unable to create your account. Please try again.'
+                        )
+                    );
+                })
+                .always(function () {
+                    setLoading(
+                        $button,
+                        $buttonText,
+                        $spinner,
+                        false,
+                        {
+                            loading: 'Creating account...',
+                            idle: 'Create account',
+                        }
+                    );
+                });
+        });
+    }
 });

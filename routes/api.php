@@ -13,6 +13,11 @@ Route::post(
 )->name('api.auth.login');
 
 Route::post(
+    '/auth/register',
+    [AuthController::class, 'register']
+)->name('api.auth.register');
+
+Route::post(
     '/image-processing/batches',
     [ImageProcessingBatchController::class, 'store']
 )->name('image-processing.batches.store');

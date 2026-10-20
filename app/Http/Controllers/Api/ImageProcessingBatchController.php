@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Throwable;
@@ -41,7 +42,7 @@ class ImageProcessingBatchController extends Controller
     public function store(
         StoreImageBatchRequest $request
     ): JsonResponse {
-        $user = $request->user();
+        $user = Auth::guard('sanctum')->user();
 
         // Guest tokens are returned only once, during batch creation.
         $guestToken = $user === null
@@ -353,7 +354,7 @@ class ImageProcessingBatchController extends Controller
         $query = ImageProcessingBatch::query()
             ->where('batch_reference', $batchReference);
 
-        $user = $request->user();
+        $user = Auth::guard('sanctum')->user();
 
         if ($user !== null) {
             $query->where('user_id', $user->id);
