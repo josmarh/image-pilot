@@ -121,11 +121,6 @@ class ImageProcessingBatchController extends Controller
         Request $request,
         string $batchReference
     ): BinaryFileResponse {
-        // $batch = ImageProcessingBatch::query()
-        //     ->where('batch_reference', $batchReference)
-        //     ->where('user_id', $request->user()->id)
-        //     ->with('items')
-        //     ->firstOrFail();
         $batch = $this->findAuthorizedBatch(
                 $request,
                 $batchReference,
@@ -299,10 +294,6 @@ class ImageProcessingBatchController extends Controller
         int $item,
         string $type
     ): BinaryFileResponse {
-        // $batch = ImageProcessingBatch::query()
-        //     ->where('batch_reference', $batchReference)
-        //     ->where('user_id', $request->user()->id)
-        //     ->firstOrFail();
         $batch = $this->findAuthorizedBatch(
                 $request,
                 $batchReference,

@@ -259,6 +259,7 @@ $(function () {
     function resetOptimizer() {
         selectedFiles = [];
 
+        $('#guestRegistrationPrompt').remove();
         $('#imageInput').val('');
 
         $('#imageList').empty();
@@ -428,6 +429,7 @@ $(function () {
             );
 
         loadBatchItems(data.batch_reference);
+        showGuestRegistrationPrompt();
     }
 
     function handleBatchFailed() {
@@ -1445,6 +1447,55 @@ $(function () {
         setTimeout(function () {
             $alert.alert('close');
         }, 5000);
+    }
+
+    function showGuestRegistrationPrompt() {
+        // Do not show the prompt to authenticated users.
+        if (isAuthenticated()) {
+            $('#guestRegistrationPrompt').remove();
+            return;
+        }
+
+        // Avoid inserting duplicate prompts.
+        if ($('#guestRegistrationPrompt').length) {
+            return;
+        }
+
+        const prompt = `
+            <div
+                id="guestRegistrationPrompt"
+                class="alert alert-info alert-dismissible mt-3 mb-4"
+                role="status"
+            >
+                <div class="d-flex flex-column flex-md-row
+                            justify-content-between align-items-md-center gap-3">
+                    <div>
+                        <strong>Images optimized successfully!</strong>
+                        <div class="small mt-1">
+                            Create a free account to save your optimization
+                            presets and access your batch history.
+                            You can still preview and download your images now.
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="/register" class="btn btn-primary btn-sm">
+                            Create free account
+                        </a>
+
+                        <button
+                            type="button"
+                            class="btn btn-outline-secondary btn-sm"
+                            data-bs-dismiss="alert"
+                        >
+                            Maybe later
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        $('#resultsList').before(prompt);
     }
 
     /*
